@@ -48,6 +48,11 @@
       </div>
       <!-- /.container-fluid -->
     </nav>
+    <div class="alert alert-danger alert-dismissible" role="alert" id="error-alert" style="display:none;">
+        <button type="button" class="close" data-dismiss="alert">
+        <span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        <span id="error-alert-message"></span>
+    </div>
     <div id="editor"></div>
     <div class="modal fade" id="openDialog" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
       <div class="modal-dialog">
@@ -100,25 +105,38 @@
       }
 
       $('#menuOpen').click(function () {
-          $.getJSON("/files", function (data) {
-              console.log(data);
-              var combo = $("#fileOpenSelect");
-              combo.empty();
-              combo.attr("size", data.length);
-              $.each(data, function (i, f) {
+          $.getJSON("/files", function (response) {
+              if (response.success) {
+                var combo = $("#fileOpenSelect");
+                combo.empty();
+                combo.attr("size", response.files.length);
+                $.each(response.files, function (i, f) {
                   combo.append("<option>" + f + "</option>");
-              });
-              $('#openDialog').modal('show');
-          })
+                });
+                $('#openDialog').modal('show');
+              } else {
+                showErrorMessage("Error getting file listing: " + response.error);
+              }
+          }).fail(function( jqxhr, textStatus, error ) {
+            showErrorMessage("Network error getting file listing: " + textStatus + ", " + error);
+          });
       });
       $('#openDialogOpenButton').click(function () {
           var selectedFile = $('#fileOpenSelect :selected').text();
           if (selectedFile) {
-              $.get("/files/" + selectedFile, function (data) {
-                  editor.setValue(data);
-                  $("#currentFilename").text(selectedFile);
-                  updateMode(selectedFile);
-                  $('#openDialog').modal('hide');
+              $.get("/files/" + selectedFile, function (response) {
+                  if (response.success) {
+                    editor.setValue(response.contents);
+                    $("#currentFilename").text(selectedFile);
+                    updateMode(selectedFile);
+                    $('#openDialog').modal('hide');
+                  } else {
+                    showErrorMessage("Error loading file " + selectedFile + ": " + response.error);
+                    $('#openDialog').modal('hide');
+                  }
+              }).fail(function( jqxhr, textStatus, error ) {
+                showErrorMessage("Network error loading file: " + textStatus + ", " + error);
+                $('#openDialog').modal('hide');
               });
           }
       });
@@ -132,13 +150,26 @@
           $('#saveAsDialog').modal('show');
       }
 
+      function showErrorMessage(msg) {
+        $("#error-alert-message").text(msg);
+        $("#error-alert").show().delay(4500).fadeOut(500);
+      }
+
       function save(filename) {
-          $.ajax({
+          var request = $.ajax({
               type: "PUT",
               url: "/files/" + filename,
+              dataType: "json",
               data: {
                   content: editor.getValue()
               }
+          });
+          request.done(function(response) {
+            if (!response.success)
+              showErrorMessage("Error saving file " + filename + ": " + response.error);
+          });
+          request.fail(function( jqXHR, textStatus, error ) {
+              showErrorMessage( "Network error saving file " + filename + ": " + textStatus + ", " + error);
           });
       }
 

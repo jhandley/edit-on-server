@@ -9,21 +9,29 @@ defmodule EditOnServer.Controllers.Files do
   end
   
   def index(conn, _params) do
-    files = @files_path |> File.ls! |> Enum.filter &(File.regular?(full_path(&1)))
-    json conn, JSON.encode!(files)
+    case @files_path |> File.ls do
+        {:ok, files} ->
+            json conn, JSON.encode!(%{success: true, files: Enum.filter(files, &(File.regular?(full_path(&1))))})
+        {:error, reason} -> 
+            json(conn, JSON.encode!(%{success: false, error: inspect(reason)}))
+    end
   end
   
   def show(conn, %{"id" => id}) do
-    contents = id |> full_path |> File.read!
-    text conn, contents
+    case id |> full_path |> File.read do
+        {:ok, contents} ->
+            json(conn, JSON.encode!(%{success: true, contents: contents}))
+        {:error, reason} -> 
+            json(conn, JSON.encode!(%{success: false, error: inspect(reason)}))
+    end
   end
 
   def update(conn, %{"id" => id, "content" => content} ) do
-    case File.write!(id, content) do
+    case File.write(id, content) do
         :ok -> 
             json(conn, JSON.encode!(%{success: true}))
         {:error, reason} -> 
-            json(conn, JSON.encode!(%{success: false, error: reason}))
+            json(conn, JSON.encode!(%{success: false, error: inspect(reason)}))
     end
   end
 
