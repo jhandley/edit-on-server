@@ -87,16 +87,23 @@
     <script src="/static/js/jquery-1.11.1.min.js"></script>
     <script src="/static/bootstrap/js/bootstrap.min.js"></script>
     <script src="/static/js/ace/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="/static/js/ace/ext-modelist.js" type="text/javascript" charset="utf-8"></script>
     <script>
       var editor = ace.edit("editor");
       editor.setTheme("ace/theme/twilight");
-      editor.getSession().setMode("ace/mode/javascript");
+      editor.getSession().setMode("ace/mode/text");
+
+      function updateMode(filePath) {
+        var modelist = ace.require('ace/ext/modelist');
+        var mode = modelist.getModeForPath(filePath).mode;
+        editor.getSession().setMode(mode);
+      }
 
       $('#menuOpen').click(function () {
           $.getJSON("/files", function (data) {
               console.log(data);
               var combo = $("#fileOpenSelect");
-			  combo.empty();
+              combo.empty();
               combo.attr("size", data.length);
               $.each(data, function (i, f) {
                   combo.append("<option>" + f + "</option>");
@@ -110,6 +117,7 @@
               $.get("/files/" + selectedFile, function (data) {
                   editor.setValue(data);
                   $("#currentFilename").text(selectedFile);
+                  updateMode(selectedFile);
                   $('#openDialog').modal('hide');
               });
           }
@@ -117,6 +125,7 @@
       $('#menuNew').click(function () {
           editor.setValue("");
           $("#currentFilename").text("Untitled");
+          editor.getSession().setMode("ace/mode/text");
       });
 
       function saveAs() {
@@ -150,6 +159,7 @@
           if (newFilename) {
               save(newFilename);
               $("#currentFilename").text(newFilename);
+              updateMode(newFilename);
               $('#saveAsDialog').modal('hide');
           }
       });      
